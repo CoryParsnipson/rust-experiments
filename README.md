@@ -12,3 +12,5 @@ Rust lang Section 2 example. Guess the number between 1 and 100 inclusive.
 ### rectangle
 Rust lang Section 5.2 example. Create Rectangle struct and traits.
 
+### restaurant
+Rust lang Section 7 example. Create a restaurant module and public/private interfaces.
