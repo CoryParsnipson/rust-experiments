@@ -12,6 +12,9 @@ Rust lang Section 2 example. Guess the number between 1 and 100 inclusive.
 ### median-mode
 Rust lang Section 8.3 suggested exercise. Given a list of integers, find the median and mode.
 
+### pig-latin
+Rust lang Section 8.3 suggested exercise. Translate a string to pig latin.
+
 ### rectangle
 Rust lang Section 5.2 example. Create Rectangle struct and traits.
 
