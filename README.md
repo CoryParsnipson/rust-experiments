@@ -20,3 +20,6 @@ Rust lang Section 5.2 example. Create Rectangle struct and traits.
 
 ### restaurant
 Rust lang Section 7 example. Create a restaurant module and public/private interfaces.
+
+### staff-database
+Rust lang Section 8.3 suggested exercise. Store information about employees and departments.
