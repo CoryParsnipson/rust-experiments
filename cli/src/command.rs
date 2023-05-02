@@ -1,12 +1,14 @@
-use config::Config;
+pub use config::*;
+
 use crate::shell::Context;
 use flag::FlagSet;
 use operand::OperandList;
 use std::error::Error;
 
-pub mod config;
 pub mod flag;
 pub mod operand;
+
+mod config;
 
 pub struct Command<'a> {
     config: &'a Config,

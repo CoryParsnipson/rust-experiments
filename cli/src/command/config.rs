@@ -14,6 +14,10 @@ impl Config {
         Config { name: name.into(), flags, help: help.into() }
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     pub fn get_flags(&self) -> &FlagSpecSet {
         &self.flags
     }

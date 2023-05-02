@@ -214,6 +214,11 @@ pub fn extract_flag(flag_text: &str) -> Option<FlagQuery> {
     if is_long(&flag_text) {
         Some(FlagQuery::Name(flag_text.strip_prefix("--").unwrap().to_string()))
     } else if is_short(&flag_text) {
+        // short flags are complicated
+        // you can have the follwing forms:
+        // 1) -a [optarg] e.g. -a myarg
+        // 2) -a[optarg] e.g. -amyarg
+        // 3) -abc e.g. -a -b -c
         Some(FlagQuery::Short(flag_text.chars().nth(1).unwrap()))
     } else {
         None

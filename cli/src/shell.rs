@@ -1,10 +1,66 @@
+use crate::command;
 use crate::command::flag::{self, Flag, FlagMissingArgError, FlagSet, FlagSpecSet, UnknownFlagError};
 use crate::command::operand::{Operand, OperandList};
 use std::collections::{HashMap, VecDeque};
 use std::error::Error;
+use std::io::{self, Write};
+
+/// Datastructure to hold a list of command configs for shell use
+pub type CommandSpec = HashMap<String, command::Config>;
 
 /// Storage to pass information between commands.
 pub type Context = HashMap<String, String>;
+
+/// Contains state for entirety of cli interface
+pub struct Shell {
+    commands: CommandSpec,
+    context: Context,
+}
+
+impl Shell {
+    pub fn new(commands: CommandSpec, context: Context) -> Shell {
+        Shell { commands, context }
+    }
+
+    pub fn find_command_config(&self, command_name: &str) -> Option<&command::Config> {
+        self.commands.get(command_name)
+    }
+
+    pub fn find_command_config_mut(&mut self, command_name: &str) -> Option<&mut command::Config> {
+        self.commands.get_mut(command_name)
+    }
+
+    pub fn get_context(&self) -> &Context { &self.context }
+    pub fn get_context_mut(&mut self) -> &mut Context { &mut self.context }
+
+    /// run the shell with this function
+    pub fn run(&self) {
+        // TODO: print help message (and welcome message?)
+
+        'run: loop {
+            print!("{} ", self.make_shell_prompt());
+            io::stdout().flush().unwrap();
+
+            let mut input = String::new();
+            io::stdin()
+                .read_line(&mut input)
+                .expect("failed to read line");
+
+            println!("User input: {}", input); // DELETEME
+            let input = input.trim();
+
+            // TODO: parse command
+            // TODO: match ParsedInput to command::Config
+            // TODO: create Command struct using command::Config and ParsedInput
+            // TODO: execute command and update self.context
+        }
+    }
+
+    fn make_shell_prompt(&self) -> String {
+        "#>".into() // TODO: implement me
+    }
+}
+
 
 /// Structured data that is obtained when a string containing a command
 /// (presumably entered by a user) is successfully parsed.
