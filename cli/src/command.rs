@@ -10,19 +10,36 @@ pub mod operand;
 
 mod config;
 
+#[derive(Debug)]
 pub struct Command<'a> {
     config: &'a Config,
-    options: FlagSet<'a>,
+    flags: FlagSet<'a>,
     operands: OperandList,
 }
 
 impl<'a> Command<'a> {
-    pub fn new(config: &'a Config, options: FlagSet<'a>, operands: OperandList) -> Command<'a> {
-        Command { config, options, operands, }
+    pub fn new(config: &'a Config, flags: FlagSet<'a>, operands: OperandList) -> Command<'a> {
+        Command { config, flags, operands, }
     }
 
     pub fn execute(&self, context: &mut Context) -> Result<(), Box<dyn Error>> {
         println!("context: {:#?}", context);
         Ok(())
+    }
+
+    pub fn flags(&self) -> &FlagSet<'a> {
+        &self.flags
+    }
+
+    pub fn flags_mut(&mut self) -> &mut FlagSet<'a> {
+        &mut self.flags
+    }
+
+    pub fn operands(&self) -> &OperandList {
+        &self.operands
+    }
+
+    pub fn operands_mut(&mut self) -> &mut OperandList {
+        &mut self.operands
     }
 }

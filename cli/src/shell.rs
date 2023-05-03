@@ -1,31 +1,35 @@
-use crate::command;
-use crate::command::flag::{self, Flag, FlagMissingArgError, FlagSet, FlagSpecSet, UnknownFlagError};
+use crate::command::{self, Command};
+use crate::command::flag::{self, Flag, FlagMissingArgError, FlagSet, UnknownFlagError};
 use crate::command::operand::{Operand, OperandList};
 use std::collections::{HashMap, VecDeque};
 use std::error::Error;
 use std::io::{self, Write};
 
 /// Datastructure to hold a list of command configs for shell use
-pub type CommandSpec = HashMap<String, command::Config>;
+pub type CommandSet = HashMap<String, command::Config>;
 
 /// Storage to pass information between commands.
 pub type Context = HashMap<String, String>;
 
 /// Contains state for entirety of cli interface
 pub struct Shell {
-    commands: CommandSpec,
+    commands: CommandSet,
     context: Context,
 }
 
 impl Shell {
-    pub fn new(commands: CommandSpec, context: Context) -> Shell {
+    pub fn new(commands: CommandSet, context: Context) -> Shell {
         Shell { commands, context }
     }
 
+    /// Given a command name, query the shell config to see if there is a
+    /// matching config. If there is, return a reference to it.
     pub fn find_command_config(&self, command_name: &str) -> Option<&command::Config> {
         self.commands.get(command_name)
     }
 
+    /// Given a command name, query the shell config to see if there is a
+    /// matching config. If there is, return a mutable reference to it.
     pub fn find_command_config_mut(&mut self, command_name: &str) -> Option<&mut command::Config> {
         self.commands.get_mut(command_name)
     }
@@ -37,7 +41,7 @@ impl Shell {
     pub fn run(&self) {
         // TODO: print help message (and welcome message?)
 
-        'run: loop {
+        loop {
             print!("{} ", self.make_shell_prompt());
             io::stdout().flush().unwrap();
 
@@ -49,9 +53,27 @@ impl Shell {
             println!("User input: {}", input); // DELETEME
             let input = input.trim();
 
-            // TODO: parse command
-            // TODO: match ParsedInput to command::Config
-            // TODO: create Command struct using command::Config and ParsedInput
+            let command_name = self.extract_command_name(input);
+            if command_name.is_none() {
+                // what seems to have happened here is that the user hit "enter"
+                // and didn't type in anything, so we received an empty string.
+                // This is not a bug, just ignore and redisplay the prompt.
+                continue
+            }
+            let command_name = command_name.unwrap();
+            println!("Command name: {:#?}", command_name); // DELETEME
+
+            let command_config = self.find_command_config(command_name);
+            if command_config.is_none() {
+                println!("Unknown command '{}'", command_name);
+                continue
+            }
+
+            let command = parse(input, command_config.unwrap());
+            if let Ok(c) = command {
+                println!("Parsed command: {:#?}", c); // DELETEME
+            }
+
             // TODO: execute command and update self.context
         }
     }
@@ -59,28 +81,19 @@ impl Shell {
     fn make_shell_prompt(&self) -> String {
         "#>".into() // TODO: implement me
     }
-}
 
-
-/// Structured data that is obtained when a string containing a command
-/// (presumably entered by a user) is successfully parsed.
-#[derive(Debug, Default)]
-pub struct ParsedInput<'a> {
-    pub command: Option<String>,
-    pub options: Option<FlagSet<'a>>,
-    pub operands: Option<OperandList>,
+    /// Given a user entered command string, extract the command name (which is
+    /// going to be the first argument separated by whitespace).
+    fn extract_command_name<'a>(&self, input_text: &'a str) -> Option<&'a str> {
+        input_text.split_whitespace().next()
+    }
 }
 
 /// Take a string that is presumably a valid cli command and turn it into
 /// structured data
-pub fn parse<'a>(input_text: &str, flags: &'a FlagSpecSet) -> Result<ParsedInput<'a>, Box<dyn Error>> {
-    println!("Command string: {}", input_text); // DELETEME
-
-    let mut parsed: ParsedInput::<'a> = Default::default();
-    let mut tokens: VecDeque<&str> = input_text.split_whitespace().collect();
-
-    // the first token should always be the command name itself
-    parsed.command = Some(tokens.pop_front().unwrap().to_owned());
+pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Command<'a>, Box<dyn Error>> {
+    let mut tokens: VecDeque<&str> = input_text.split_whitespace().skip(1).collect();
+    let mut command = Command::new(config, FlagSet::new(), OperandList::new());
 
     while !tokens.is_empty() {
         let token = tokens.pop_front().unwrap();
@@ -88,7 +101,7 @@ pub fn parse<'a>(input_text: &str, flags: &'a FlagSpecSet) -> Result<ParsedInput
 
         if flag::is_flag(&token) {
             let flag_id = flag::extract_flag(&token).unwrap();
-            let spec = flag::query_flag_spec(&flag_id, &flags);
+            let spec = flag::query_flag_spec(&flag_id, config.get_flags());
             if spec.is_none() {
                 return Err(Box::new(UnknownFlagError(flag_id)));
             }
@@ -122,28 +135,14 @@ pub fn parse<'a>(input_text: &str, flags: &'a FlagSpecSet) -> Result<ParsedInput
                 },
             };
 
-            // add new Flag to parsed input
-            if parsed.options.is_none() {
-                parsed.options = Some(FlagSet::<'a>::new());
-            }
-
-            if let Some(ref mut flag_set) = parsed.options {
-                // it is not an error to pass in the same flag multiple times
-                // a later value should overwrite an earlier one
-                flag_set.replace(Flag::<'a>::new(&spec, parsed_arg));
-            }
+            // it is not an error to pass in the same flag multiple times a
+            // later value should overwrite an earlier one
+            command.flags_mut().replace(Flag::<'a>::new(&spec, parsed_arg));
         } else {
             println!("Found operand: {}", token); // DELETEME
-
-            if parsed.operands.is_none() {
-                parsed.operands = Some(OperandList::new());
-            }
-
-            if let Some(ref mut operand_list) = parsed.operands {
-                operand_list.push(Operand::new(token));
-            }
+            command.operands_mut().push(Operand::new(token));
         }
     }
 
-    Ok(parsed)
+    Ok(command)
 }
