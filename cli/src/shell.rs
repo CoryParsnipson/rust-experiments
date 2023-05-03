@@ -1,7 +1,7 @@
 use crate::command::{self, Command};
 use crate::command::flag::{self, Flag, FlagMissingArgError, FlagSet, UnknownFlagError};
 use crate::command::operand::{Operand, OperandList};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::{self, Write};
 
@@ -92,11 +92,11 @@ impl Shell {
 /// Take a string that is presumably a valid cli command and turn it into
 /// structured data
 pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Command<'a>, Box<dyn Error>> {
-    let mut tokens: VecDeque<&str> = input_text.split_whitespace().skip(1).collect();
+    let mut tokens = input_text.split_whitespace().skip(1).peekable();
     let mut command = Command::new(config, FlagSet::new(), OperandList::new());
 
-    while !tokens.is_empty() {
-        let token = tokens.pop_front().unwrap();
+    while tokens.peek().is_some() {
+        let token = tokens.next().unwrap();
         println!("Found token: {}", token); // DELETEME
 
         if flag::is_flag(&token) {
@@ -110,27 +110,21 @@ pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Comman
             println!("Matched flag spec: {:?}", flag_id); // DELETEME
 
             // check the argument spec and consume next token if necessary
-            let next = tokens.pop_front();
+            let next = tokens.peek();
             let parsed_arg = match spec.get_arg_spec() {
                 flag::ArgSpec::Optional => {
                     if next.is_none() || flag::is_flag(next.unwrap()) {
-                        if next.is_some() {
-                            tokens.push_front(next.unwrap()); // don't forget to put next token back
-                        }
                         continue;
                     }
-                    flag::Arg::Optional(Some(next.unwrap().to_string()))
+                    flag::Arg::Optional(Some(tokens.next().unwrap().to_string()))
                 },
                 flag::ArgSpec::Required => {
                     if next.is_none() || flag::is_flag(next.unwrap()) {
                         return Err(Box::new(FlagMissingArgError(flag_id)));
                     }
-                    flag::Arg::Required(next.unwrap().to_string())
+                    flag::Arg::Required(tokens.next().unwrap().to_string())
                 },
                 _ => {
-                    if next.is_some() {
-                        tokens.push_front(next.unwrap()); // don't forget to put next token back
-                    }
                     flag::Arg::None
                 },
             };
