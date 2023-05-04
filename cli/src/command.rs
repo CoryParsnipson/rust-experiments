@@ -23,8 +23,11 @@ impl<'a> Command<'a> {
     }
 
     pub fn execute(&self, context: &mut Context) -> Result<(), Box<dyn Error>> {
-        println!("context: {:#?}", context);
-        Ok(())
+        (self.config.callback())(&self, context)
+    }
+    
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     pub fn flags(&self) -> &FlagSet<'a> {

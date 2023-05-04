@@ -52,7 +52,7 @@ pub enum Arg {
 }
 
 impl Arg {
-    fn raw(&self) -> Option<String> {
+    pub fn raw(&self) -> Option<String> {
         match self {
             Arg::Optional(val) => val.clone(),
             Arg::Required(s) => Some(s.to_owned()),
@@ -60,7 +60,7 @@ impl Arg {
         }
     }
 
-    fn get<T: From<String>>(&self) -> Result<Option<T>, Box<dyn Error>> {
+    pub fn get<T: From<String>>(&self) -> Result<Option<T>, Box<dyn Error>> {
         let raw = self.raw();
         if let None = raw {
             return Ok(None);
@@ -117,8 +117,17 @@ pub fn query_flag_spec<'a>(needle: &FlagQuery, haystack: &'a FlagSpecSet) -> Opt
     return None;
 }
 
-//pub fn query(needle: &FlagQuery, haystack: &FlagSet) {
-//}
+pub fn query_flag<'a>(needle: &FlagQuery, haystack: &'a FlagSet) -> Option<&'a Flag<'a>> {
+    for entry in haystack.iter() {
+        if match needle {
+            FlagQuery::Name(ref s) => *s == entry.spec.id.name,
+            FlagQuery::Short(ref c) => *c == entry.spec.id.short,
+        } {
+            return Some(&entry);
+        }
+    }
+    return None;
+}
 
 /// Use FlagSpec to configure command line options for Commands
 #[derive(Clone, Debug, Eq)]
@@ -136,6 +145,10 @@ impl FlagSpec {
 
     pub fn get_arg_spec(&self) -> &ArgSpec {
         &self.arg_spec
+    }
+
+    pub fn help(&self) -> String {
+        self.help.clone()
     }
 }
 
@@ -163,7 +176,11 @@ impl<'a> Flag<'a> {
         Flag { spec, arg }
     }
 
-    fn set_arg(&mut self, arg: Option<String>) -> Result<(), &str> {
+    pub fn spec(&self) -> &'a FlagSpec {
+        self.spec
+    }
+
+    pub fn set_arg(&mut self, arg: Option<String>) -> Result<(), &str> {
         self.arg = match self.arg {
             Arg::Optional(_) => { Arg::Optional(arg) },
             Arg::Required(_) => { Arg::Required(arg.expect("Passed None to Arg::Required")) },
@@ -177,7 +194,7 @@ impl<'a> Flag<'a> {
         Ok(())
     }
 
-    fn get_arg(&self) -> &Arg {
+    pub fn get_arg(&self) -> &Arg {
         &self.arg
     }
 }

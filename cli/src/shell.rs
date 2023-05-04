@@ -14,12 +14,11 @@ pub type Context = HashMap<String, String>;
 /// Contains state for entirety of cli interface
 pub struct Shell {
     commands: CommandSet,
-    context: Context,
 }
 
 impl Shell {
-    pub fn new(commands: CommandSet, context: Context) -> Shell {
-        Shell { commands, context }
+    pub fn new(commands: CommandSet) -> Shell {
+        Shell { commands }
     }
 
     /// Given a command name, query the shell config to see if there is a
@@ -34,11 +33,8 @@ impl Shell {
         self.commands.get_mut(command_name)
     }
 
-    pub fn get_context(&self) -> &Context { &self.context }
-    pub fn get_context_mut(&mut self) -> &mut Context { &mut self.context }
-
     /// run the shell with this function
-    pub fn run(&self) {
+    pub fn run(&self, context: &mut Context) {
         // TODO: print help message (and welcome message?)
 
         loop {
@@ -70,11 +66,17 @@ impl Shell {
             }
 
             let command = parse(input, command_config.unwrap());
-            if let Ok(c) = command {
-                println!("Parsed command: {:#?}", c); // DELETEME
+            if let Err(err) = command {
+                println!("Error: {:?}", err);
+                continue;
             }
+            let command = command.unwrap();
 
-            // TODO: execute command and update self.context
+            println!("Parsed command: {:#?}", command); // DELETEME
+
+            if let Err(err) = command.execute(context) {
+                println!("Error: {:?}", err);
+            }
         }
     }
 
