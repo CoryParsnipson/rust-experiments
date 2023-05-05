@@ -1,5 +1,6 @@
 use crate::shell::{self, Shell};
 use std::error::Error;
+use std::fmt;
 use super::Command;
 use super::flag::FlagSpecSet;
 
@@ -30,10 +31,14 @@ impl Config {
     pub fn callback(&self) -> &Callback {
         &self.callback
     }
+
+    pub fn help(&self) -> &str {
+        &self.help
+    }
 }
 
-impl std::fmt::Debug for Config {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for Config {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.name.fmt(f)?;
         self.flags.fmt(f)?;
         self.help.fmt(f)?;

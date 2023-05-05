@@ -3,6 +3,7 @@ use crate::command::flag::{self, Flag, FlagMissingArgError, FlagSet, UnknownFlag
 use crate::command::operand::{Operand, OperandList};
 use std::collections::HashMap;
 use std::error::Error;
+use std::fmt::{Write as fmt_Write};
 use std::io::{self, Write};
 
 /// default prompt string
@@ -19,11 +20,12 @@ pub type Context = HashMap<String, String>;
 /// Contains state for entirety of cli interface
 pub struct Shell {
     commands: CommandSet,
+    help: String,
 }
 
 impl Shell {
-    pub fn new(commands: CommandSet) -> Shell {
-        Shell { commands }
+    pub fn new(commands: CommandSet, help: &str) -> Shell {
+        Shell { commands, help: help.into() }
     }
 
     /// Given a command name, query the shell config to see if there is a
@@ -36,6 +38,38 @@ impl Shell {
     /// matching config. If there is, return a mutable reference to it.
     pub fn find_command_config_mut(&mut self, command_name: &str) -> Option<&mut command::Config> {
         self.commands.get_mut(command_name)
+    }
+
+    /// print help function for this Shell
+    pub fn help(&self) -> String {
+        let mut help_str = format!("{}\n\n", self.help);
+
+        let mut name_width = 0;
+        let mut help_width = 0;
+
+        let _tmp: Vec<()>  = self.commands.iter().map(|e| {
+            name_width = std::cmp::max(name_width, e.1.name().len() + 1);
+            help_width = std::cmp::max(help_width, e.1.help().len() + 1);
+        }).collect();
+
+        // do this to avoid having to pull in a formatting crate
+        for (_, c) in self.commands.iter() {
+            for idx in 0..name_width {
+                if idx < name_width - c.name().len() {
+                    write!(help_str, "{}", " ").unwrap();
+                } else {
+                    break;
+                }
+            }
+            write!(help_str, "{}    {}", c.name(), c.help()).unwrap();
+
+            for _ in 0..(help_width - c.help().len()) {
+                write!(help_str, "{}", " ").unwrap();
+            }
+            write!(help_str, "\n").unwrap();
+        }
+
+        help_str
     }
 
     /// run the shell
