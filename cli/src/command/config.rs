@@ -1,9 +1,9 @@
-use crate::shell;
+use crate::shell::{self, Shell};
 use std::error::Error;
 use super::Command;
 use super::flag::FlagSpecSet;
 
-pub type Callback = fn(&Command, &mut shell::Context) -> Result<(), Box<dyn Error>>;
+pub type Callback = fn(&Command, shell: &Shell, &mut shell::Context) -> Result<(), Box<dyn Error>>;
 
 /// All specifications to run a Command. Each flag must be unique, according to
 /// PartialEq defined on flag::FlagId.

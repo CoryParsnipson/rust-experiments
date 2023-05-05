@@ -21,7 +21,7 @@ fn main() {
         "add",
         flag_spec,
         "Add two numbers together",
-        | command: &Command, _context: &mut Context | -> Result<(), Box<dyn Error>> {
+        | command: &Command, _shell: &Shell, _context: &mut Context | -> Result<(), Box<dyn Error>> {
             let operands = command.operands();
             let expected_num_operands = 2;
 
@@ -36,8 +36,10 @@ fn main() {
                 );
             }
 
-            let res = operands[0].value_as::<i32>()? + operands[1].value_as::<i32>()?;
-            println!("{}", res);
+            println!(
+                "{}",
+                operands[0].value_as::<i32>()? + operands[1].value_as::<i32>()?
+            );
 
             Ok(())
         },

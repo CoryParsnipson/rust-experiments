@@ -103,7 +103,7 @@ impl Shell {
     fn run_parsed_result<'a>(&self, input_text: &str, context: &mut Context) -> Result<(), Box<dyn Error>> {
         match self.parse_user_input(input_text) {
             Ok(c_opt) => match c_opt {
-                Some(command) => command.execute(context),
+                Some(command) => command.execute(&self, context),
                 None => Ok(()),
             },
             Err(error) => Err(error),

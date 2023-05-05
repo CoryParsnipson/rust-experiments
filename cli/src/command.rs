@@ -1,6 +1,6 @@
 pub use config::*;
 
-use crate::shell::Context;
+use crate::shell::{Context, Shell};
 use flag::FlagSet;
 use operand::OperandList;
 use std::error::Error;
@@ -22,8 +22,8 @@ impl<'a> Command<'a> {
         Command { config, flags, operands, }
     }
 
-    pub fn execute(&self, context: &mut Context) -> Result<(), Box<dyn Error>> {
-        (self.config.callback())(&self, context)
+    pub fn execute(&self, shell: &Shell, context: &mut Context) -> Result<(), Box<dyn Error>> {
+        (self.config.callback())(&self, shell, context)
     }
     
     pub fn config(&self) -> &Config {
