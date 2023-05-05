@@ -22,7 +22,7 @@ impl<'a> Command<'a> {
         Command { config, flags, operands, }
     }
 
-    pub fn execute(&self, shell: &Shell, context: &mut Context) -> Result<(), Box<dyn Error>> {
+    pub fn execute(&self, shell: &Shell, context: &mut Context) -> Result<ReturnCode, Box<dyn Error>> {
         (self.config.callback())(&self, shell, context)
     }
     

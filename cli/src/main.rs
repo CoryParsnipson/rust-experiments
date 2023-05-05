@@ -21,7 +21,7 @@ fn main() {
         "add",
         flag_spec,
         "Add two numbers together",
-        | command: &Command, _shell: &Shell, _context: &mut Context | -> Result<(), Box<dyn Error>> {
+        | command: &Command, _shell: &Shell, _context: &mut Context | -> Result<command::ReturnCode, Box<dyn Error>> {
             let operands = command.operands();
             let expected_num_operands = 2;
 
@@ -41,7 +41,7 @@ fn main() {
                 operands[0].value_as::<i32>()? + operands[1].value_as::<i32>()?
             );
 
-            Ok(())
+            Ok(command::ReturnCode::Ok)
         },
     );
 
@@ -49,15 +49,25 @@ fn main() {
         "help",
         FlagSpecSet::new(),
         "Print this help message",
-        | _command: &Command, shell: &Shell, _context: &mut Context | -> Result<(), Box<dyn Error>> {
+        | _command: &Command, shell: &Shell, _context: &mut Context | -> Result<command::ReturnCode, Box<dyn Error>> {
             println!("{}", shell.help());
-            Ok(())
+            Ok(command::ReturnCode::Ok)
+        },
+    );
+
+    let exit_config = command::Config::new(
+        "exit",
+        FlagSpecSet::new(),
+        "Quit the command line interface.",
+        | _command: &Command, _shell: &Shell, _context: &mut Context | -> Result<command::ReturnCode, Box<dyn Error>> {
+            Ok(command::ReturnCode::Abort)
         },
     );
 
     let mut command_set = CommandSet::new();
     command_set.insert(add_config.name().to_owned(), add_config);
     command_set.insert(help_config.name().to_owned(), help_config);
+    command_set.insert(exit_config.name().to_owned(), exit_config);
 
     let mut context = Context::new();
 

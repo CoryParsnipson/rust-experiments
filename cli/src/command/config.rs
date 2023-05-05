@@ -4,7 +4,12 @@ use std::fmt;
 use super::Command;
 use super::flag::FlagSpecSet;
 
-pub type Callback = fn(&Command, shell: &Shell, &mut shell::Context) -> Result<(), Box<dyn Error>>;
+pub enum ReturnCode {
+    Ok,
+    Abort,
+}
+
+pub type Callback = fn(&Command, shell: &Shell, &mut shell::Context) -> Result<ReturnCode, Box<dyn Error>>;
 
 /// All specifications to run a Command. Each flag must be unique, according to
 /// PartialEq defined on flag::FlagId.

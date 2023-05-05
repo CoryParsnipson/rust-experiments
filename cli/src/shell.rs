@@ -72,16 +72,26 @@ impl Shell {
         help_str
     }
 
+    pub fn quit(&self) {
+        // any "on_quit" actions should be run here
+        println!("Goodbye.\n");
+    }
+
     /// run the shell
     pub fn run(&self, context: &mut Context) {
         let on_run_command = context.get(CONTEXT_ON_RUN_COMMAND)
             .unwrap_or(&String::from("")).clone();
 
-        if let Err(error) = self.run_parsed_result(&on_run_command, context) {
-            println!("{}", error);
+        match self.run_parsed_result(&on_run_command, context) {
+            Ok(code) => {
+                if let command::ReturnCode::Abort = code {
+                    return;
+                }
+            },
+            Err(error) => { println!("{}", error); }
         }
 
-        loop {
+        'run: loop {
             print!("{} ", self.make_shell_prompt(&(*context)));
             io::stdout().flush().unwrap();
 
@@ -91,8 +101,14 @@ impl Shell {
                 .expect("failed to read line");
             let input = input.trim();
 
-            if let Err(error) = self.run_parsed_result(input, context) {
-                println!("{}", error);
+            match self.run_parsed_result(input, context) {
+                Ok(code) => {
+                    if let command::ReturnCode::Abort = code {
+                        self.quit();
+                        break 'run;
+                    }
+                },
+                Err(error) => { println!("{}", error); }
             }
         }
     }
@@ -134,11 +150,11 @@ impl Shell {
 
     /// parse a user input string and run the resulting command or show error.
     /// This does parse_user_input() and then command.execute().
-    fn run_parsed_result<'a>(&self, input_text: &str, context: &mut Context) -> Result<(), Box<dyn Error>> {
+    fn run_parsed_result<'a>(&self, input_text: &str, context: &mut Context) -> Result<command::ReturnCode, Box<dyn Error>> {
         match self.parse_user_input(input_text) {
             Ok(c_opt) => match c_opt {
                 Some(command) => command.execute(&self, context),
-                None => Ok(()),
+                None => Ok(command::ReturnCode::Ok),
             },
             Err(error) => Err(error),
         }
