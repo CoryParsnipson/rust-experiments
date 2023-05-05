@@ -8,7 +8,7 @@ impl std::fmt::Display for MissingOperandError {
         write!(
             f,
             "not enough operands provided. Received {:?}, expected {}",
-            self.0,
+            self.0.len(),
             self.1,
         )
     }

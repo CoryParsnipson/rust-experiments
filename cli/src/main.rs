@@ -36,7 +36,7 @@ fn main() {
                 );
             }
 
-            let res = operands[0].value_as::<i16>()? + operands[1].value_as::<i16>()?;
+            let res = operands[0].value_as::<i32>()? + operands[1].value_as::<i32>()?;
             println!("{}", res);
 
             Ok(())
@@ -47,6 +47,7 @@ fn main() {
     command_set.insert(add_config.name().to_owned(), add_config);
 
     let mut context = Context::new();
+
     let shell = Shell::new(command_set);
     shell.run(&mut context);
 }

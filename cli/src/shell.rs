@@ -5,6 +5,11 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::io::{self, Write};
 
+/// default prompt string
+const DEFAULT_PROMPT: &str = "#";
+const CONTEXT_PROMPT_STRING: &str = "prompt";
+const CONTEXT_ON_RUN_COMMAND: &str = "on_run";
+
 /// Datastructure to hold a list of command configs for shell use
 pub type CommandSet = HashMap<String, command::Config>;
 
@@ -33,55 +38,39 @@ impl Shell {
         self.commands.get_mut(command_name)
     }
 
-    /// run the shell with this function
+    /// run the shell
     pub fn run(&self, context: &mut Context) {
-        // TODO: print help message (and welcome message?)
+        let on_run_command = context.get(CONTEXT_ON_RUN_COMMAND)
+            .unwrap_or(&String::from("")).clone();
+
+        if let Err(error) = self.run_parsed_result(&on_run_command, context) {
+            println!("{}", error);
+        }
 
         loop {
-            print!("{} ", self.make_shell_prompt());
+            print!("{} ", self.make_shell_prompt(&(*context)));
             io::stdout().flush().unwrap();
 
             let mut input = String::new();
             io::stdin()
                 .read_line(&mut input)
                 .expect("failed to read line");
-
-            println!("User input: {}", input); // DELETEME
             let input = input.trim();
 
-            let command_name = self.extract_command_name(input);
-            if command_name.is_none() {
-                // what seems to have happened here is that the user hit "enter"
-                // and didn't type in anything, so we received an empty string.
-                // This is not a bug, just ignore and redisplay the prompt.
-                continue
-            }
-            let command_name = command_name.unwrap();
-            println!("Command name: {:#?}", command_name); // DELETEME
-
-            let command_config = self.find_command_config(command_name);
-            if command_config.is_none() {
-                println!("Unknown command '{}'", command_name);
-                continue
-            }
-
-            let command = parse(input, command_config.unwrap());
-            if let Err(err) = command {
-                println!("Error: {:?}", err);
-                continue;
-            }
-            let command = command.unwrap();
-
-            println!("Parsed command: {:#?}", command); // DELETEME
-
-            if let Err(err) = command.execute(context) {
-                println!("Error: {:?}", err);
+            if let Err(error) = self.run_parsed_result(input, context) {
+                println!("{}", error);
             }
         }
     }
 
-    fn make_shell_prompt(&self) -> String {
-        "#>".into() // TODO: implement me
+    /// generate prompt string
+    fn make_shell_prompt(&self, context: &Context) -> String {
+        let mut prompt_string = String::from(DEFAULT_PROMPT);
+        if let Some(s) = context.get(CONTEXT_PROMPT_STRING) {
+            prompt_string = s.clone();
+        }
+
+        format!("{}>", prompt_string).into()
     }
 
     /// Given a user entered command string, extract the command name (which is
@@ -89,17 +78,51 @@ impl Shell {
     fn extract_command_name<'a>(&self, input_text: &'a str) -> Option<&'a str> {
         input_text.split_whitespace().next()
     }
+
+    /// go from user input string to Command
+    fn parse_user_input<'a>(&'a self, input_text: &'a str) -> Result<Option<Command<'a>>, Box<dyn Error>> {
+        let command_name = self.extract_command_name(input_text);
+        if command_name.is_none() {
+            // what seems to have happened here is that the user hit "enter"
+            // and didn't type in anything, so we received an empty string.
+            // This is not a bug, just ignore and redisplay the prompt.
+            return Ok(None)
+        }
+        let command_name = command_name.unwrap();
+
+        let command_config = self.find_command_config(command_name);
+        if command_config.is_none() {
+            return Err(Box::new(UnknownCommandError(command_name.into())));
+        }
+
+        parse(input_text, command_config.unwrap())
+    }
+
+    /// parse a user input string and run the resulting command or show error.
+    /// This does parse_user_input() and then command.execute().
+    fn run_parsed_result<'a>(&self, input_text: &str, context: &mut Context) -> Result<(), Box<dyn Error>> {
+        match self.parse_user_input(input_text) {
+            Ok(c_opt) => match c_opt {
+                Some(command) => command.execute(context),
+                None => Ok(()),
+            },
+            Err(error) => Err(error),
+        }
+    }
 }
 
 /// Take a string that is presumably a valid cli command and turn it into
 /// structured data
-pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Command<'a>, Box<dyn Error>> {
+pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Option<Command<'a>>, Box<dyn Error>> {
+    if input_text.is_empty() {
+        return Ok(None);
+    }
+
     let mut tokens = input_text.split_whitespace().skip(1).peekable();
     let mut command = Command::new(config, FlagSet::new(), OperandList::new());
 
     while tokens.peek().is_some() {
         let token = tokens.next().unwrap();
-        println!("Found token: {}", token); // DELETEME
 
         if flag::is_flag(&token) {
             let flag_id = flag::extract_flag(&token).unwrap();
@@ -109,8 +132,6 @@ pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Comman
             }
             let spec = spec.unwrap();
                 
-            println!("Matched flag spec: {:?}", flag_id); // DELETEME
-
             // check the argument spec and consume next token if necessary
             let next = tokens.peek();
             let parsed_arg = match spec.get_arg_spec() {
@@ -135,10 +156,20 @@ pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Comman
             // later value should overwrite an earlier one
             command.flags_mut().replace(Flag::<'a>::new(&spec, parsed_arg));
         } else {
-            println!("Found operand: {}", token); // DELETEME
             command.operands_mut().push(Operand::new(token));
         }
     }
 
-    Ok(command)
+    Ok(Some(command))
 }
+
+#[derive(Debug)]
+pub struct UnknownCommandError(pub String);
+
+impl std::fmt::Display for UnknownCommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Error: unknown command {}", self.0)
+    }
+}
+
+impl std::error::Error for UnknownCommandError {}
