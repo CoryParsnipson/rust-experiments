@@ -18,7 +18,7 @@ fn main() {
         });
     }
 
-    println!("Hello, world!");
+    println!("Shutting down.");
 }
 
 fn handle_connection(mut stream: TcpStream) {
