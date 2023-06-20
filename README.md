@@ -23,3 +23,6 @@ Rust lang Section 7 example. Create a restaurant module and public/private inter
 
 ### staff-database
 Rust lang Section 8.3 suggested exercise. Store information about employees and departments.
+
+### webserver
+Rust lang Section 20 final project. Create a simple multi-threaded HTTP web server.
