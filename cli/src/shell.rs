@@ -1,9 +1,9 @@
-use crate::command::{self, Command};
 use crate::command::flag::{self, Flag, FlagMissingArgError, FlagSet, UnknownFlagError};
 use crate::command::operand::{Operand, OperandList};
+use crate::command::{self, Command};
 use std::collections::HashMap;
 use std::error::Error;
-use std::fmt::{Write as fmt_Write};
+use std::fmt::Write as fmt_Write;
 use std::io::{self, Write};
 
 /// default prompt string
@@ -25,7 +25,10 @@ pub struct Shell {
 
 impl Shell {
     pub fn new(commands: CommandSet, help: &str) -> Shell {
-        Shell { commands, help: help.into() }
+        Shell {
+            commands,
+            help: help.into(),
+        }
     }
 
     /// Given a command name, query the shell config to see if there is a
@@ -47,10 +50,14 @@ impl Shell {
         let mut name_width = 0;
         let mut help_width = 0;
 
-        let _tmp: Vec<()>  = self.commands.iter().map(|e| {
-            name_width = std::cmp::max(name_width, e.1.name().len() + 1);
-            help_width = std::cmp::max(help_width, e.1.help().len() + 1);
-        }).collect();
+        let _tmp: Vec<()> = self
+            .commands
+            .iter()
+            .map(|e| {
+                name_width = std::cmp::max(name_width, e.1.name().len() + 1);
+                help_width = std::cmp::max(help_width, e.1.help().len() + 1);
+            })
+            .collect();
 
         // do this to avoid having to pull in a formatting crate
         for (_, c) in self.commands.iter() {
@@ -79,16 +86,20 @@ impl Shell {
 
     /// run the shell
     pub fn run(&self, context: &mut Context) {
-        let on_run_command = context.get(CONTEXT_ON_RUN_COMMAND)
-            .unwrap_or(&String::from("")).clone();
+        let on_run_command = context
+            .get(CONTEXT_ON_RUN_COMMAND)
+            .unwrap_or(&String::from(""))
+            .clone();
 
         match self.run_parsed_result(&on_run_command, context) {
             Ok(code) => {
                 if let command::ReturnCode::Abort = code {
                     return;
                 }
-            },
-            Err(error) => { println!("{}", error); }
+            }
+            Err(error) => {
+                println!("{}", error);
+            }
         }
 
         'run: loop {
@@ -107,8 +118,10 @@ impl Shell {
                         self.quit();
                         break 'run;
                     }
-                },
-                Err(error) => { println!("{}", error); }
+                }
+                Err(error) => {
+                    println!("{}", error);
+                }
             }
         }
     }
@@ -130,13 +143,16 @@ impl Shell {
     }
 
     /// go from user input string to Command
-    fn parse_user_input<'a>(&'a self, input_text: &'a str) -> Result<Option<Command<'a>>, Box<dyn Error>> {
+    fn parse_user_input<'a>(
+        &'a self,
+        input_text: &'a str,
+    ) -> Result<Option<Command<'a>>, Box<dyn Error>> {
         let command_name = self.extract_command_name(input_text);
         if command_name.is_none() {
             // what seems to have happened here is that the user hit "enter"
             // and didn't type in anything, so we received an empty string.
             // This is not a bug, just ignore and redisplay the prompt.
-            return Ok(None)
+            return Ok(None);
         }
         let command_name = command_name.unwrap();
 
@@ -150,7 +166,11 @@ impl Shell {
 
     /// parse a user input string and run the resulting command or show error.
     /// This does parse_user_input() and then command.execute().
-    fn run_parsed_result<'a>(&self, input_text: &str, context: &mut Context) -> Result<command::ReturnCode, Box<dyn Error>> {
+    fn run_parsed_result<'a>(
+        &self,
+        input_text: &str,
+        context: &mut Context,
+    ) -> Result<command::ReturnCode, Box<dyn Error>> {
         match self.parse_user_input(input_text) {
             Ok(c_opt) => match c_opt {
                 Some(command) => command.execute(&self, context),
@@ -163,7 +183,10 @@ impl Shell {
 
 /// Take a string that is presumably a valid cli command and turn it into
 /// structured data
-pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Option<Command<'a>>, Box<dyn Error>> {
+pub fn parse<'a>(
+    input_text: &str,
+    config: &'a command::Config,
+) -> Result<Option<Command<'a>>, Box<dyn Error>> {
     if input_text.is_empty() {
         return Ok(None);
     }
@@ -181,7 +204,7 @@ pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Option
                 return Err(Box::new(UnknownFlagError(flag_id)));
             }
             let spec = spec.unwrap();
-                
+
             // check the argument spec and consume next token if necessary
             let next = tokens.peek();
             let parsed_arg = match spec.get_arg_spec() {
@@ -190,21 +213,21 @@ pub fn parse<'a>(input_text: &str, config: &'a command::Config) -> Result<Option
                         continue;
                     }
                     flag::Arg::Optional(Some(tokens.next().unwrap().to_string()))
-                },
+                }
                 flag::ArgSpec::Required => {
                     if next.is_none() || flag::is_flag(next.unwrap()) {
                         return Err(Box::new(FlagMissingArgError(flag_id)));
                     }
                     flag::Arg::Required(tokens.next().unwrap().to_string())
-                },
-                _ => {
-                    flag::Arg::None
-                },
+                }
+                _ => flag::Arg::None,
             };
 
             // it is not an error to pass in the same flag multiple times a
             // later value should overwrite an earlier one
-            command.flags_mut().replace(Flag::<'a>::new(&spec, parsed_arg));
+            command
+                .flags_mut()
+                .replace(Flag::<'a>::new(&spec, parsed_arg));
         } else {
             command.operands_mut().push(Operand::new(token));
         }
