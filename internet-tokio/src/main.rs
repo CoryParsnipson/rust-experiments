@@ -136,14 +136,11 @@ async fn response(handle: &Handle, topic: &str, num_responders: usize) {
                     rng.gen::<usize>() % response_types.len()
                 };
 
-                if has_sucks_in_it && tid == 0 {
-                } else {
-                    println!(
-                        "{}",
-                        reg.render(response_types[idx], &json!({"topic": topic}))
-                            .unwrap()
-                    );
-                }
+                println!(
+                    "{}",
+                    reg.render(response_types[idx], &json!({"topic": topic}))
+                        .unwrap()
+                );
             }));
         }
     }
