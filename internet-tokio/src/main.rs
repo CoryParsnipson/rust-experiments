@@ -1,7 +1,6 @@
 use rand::Rng;
 use std::cmp::max;
 use std::io::{self, Write};
-use std::thread;
 use tokio::io::Result;
 use tokio::runtime::Handle;
 use tokio::time::{sleep, Duration};
@@ -14,44 +13,32 @@ const MAX_RESPONDERS: usize = 10;
 async fn main() -> Result<()> {
     let tokio_h = Handle::current();
 
-    let jh = thread::spawn(move || {
-        println!("Starting internet simulator...");
+    println!("Starting internet simulator...");
+    loop {
+        print!("Name a thing: ");
+        io::stdout().flush().unwrap();
 
-        loop {
-            print!("Name a thing: ");
-            io::stdout().flush().unwrap();
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("failed to read line");
 
-            let mut input = String::new();
-            io::stdin()
-                .read_line(&mut input)
-                .expect("failed to read line");
+        let input = String::from(input.trim());
+        let handle = tokio_h.clone();
 
-            let input = String::from(input.trim());
-            let handle = tokio_h.clone();
+        let th = tokio_h.spawn(async move {
+            let num_responders = {
+                let mut rng = rand::thread_rng();
+                let num = rng.gen::<usize>() % MAX_RESPONDERS;
 
-            let th = tokio_h.spawn(async move {
-                let num_responders = {
-                    let mut rng = rand::thread_rng();
-                    let num = rng.gen::<usize>() % MAX_RESPONDERS;
+                max(MIN_RESPONDERS, num)
+            };
 
-                    max(MIN_RESPONDERS, num)
-                };
+            response(&handle, input.as_str(), num_responders).await;
+        });
 
-                response(&handle, input.as_str(), num_responders).await;
-            });
-
-            // not sure if this is the right way, but we need to wait for the
-            // tokio threads to finish. We can't use await because this closure
-            // from spawned thread is not async.
-            while !th.is_finished() {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-            }
-        }
-    });
-    jh.join().expect("input thread has panicked");
-
-    println!("Hello, world!");
-    Ok(())
+        let _ = th.await;
+    }
 }
 
 async fn response(handle: &Handle, topic: &str, num_responders: usize) {
