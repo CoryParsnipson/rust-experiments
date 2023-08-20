@@ -1,7 +1,17 @@
+use async_io::Timer;
 use handlebars::{handlebars_helper, Handlebars, RenderError};
 use rand::Rng;
 use serde_json::json;
+use smol::Task;
+use std::cmp::max;
 use std::io::{self, Write};
+use std::sync::Arc;
+use std::time::Duration;
+use substring::Substring;
+
+const MAX_DELAY: i64 = 3000; // in milliseconds
+const MIN_RESPONDERS: usize = 3;
+const MAX_RESPONDERS: usize = 10;
 
 fn main() {
     println!("Starting internet simulator...");
@@ -16,10 +26,71 @@ fn main() {
 
         let input = String::from(input.trim());
 
-        smol::block_on(async move {
-            let d = Dialogue::new();
-            println!("{}", d.get_bad_response(&json!({"topic": input})));
-        });
+        let has_sucks_in_it = input.to_lowercase().contains("suck");
+        let topic = if has_sucks_in_it {
+            let start_pos = input.to_lowercase().find("suck").unwrap();
+            let mut end_pos = start_pos;
+
+            loop {
+                if let Some(c) = input.chars().nth(end_pos) {
+                    if !c.is_whitespace() {
+                        end_pos += 1;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            input.substring(0, start_pos).to_owned() + input.substring(end_pos, input.len())
+        } else {
+            String::from(input)
+        };
+
+        let num_responders = {
+            let mut rng = rand::thread_rng();
+            let num = rng.gen::<usize>() % MAX_RESPONDERS;
+
+            max(MIN_RESPONDERS, num)
+        };
+
+        let d = Arc::new(Dialogue::new());
+        let mut handles: Vec<Task<()>> = vec![];
+
+        for tid in 0..num_responders {
+            let topic = topic.clone();
+            let d = d.clone();
+
+            handles.push(smol::spawn(async move {
+                let delay_amount = {
+                    // calculate delay this way because I want them to be grouped in clusters
+                    let mut rng = rand::thread_rng();
+                    let delay = (rng.gen::<i64>() % (MAX_DELAY / 1000)) * 1000;
+                    let jitter = (rng.gen::<u64>() % 1000) as i64 - 500;
+                    let delay = delay + jitter;
+
+                    (if delay > 0 { delay } else { 0 }) as u64
+                };
+
+                Timer::after(Duration::from_millis(delay_amount)).await;
+
+                if has_sucks_in_it {
+                    if tid == 0 {
+                        println!("{}", d.render("good1", &json!({"topic": topic})).unwrap());
+                    } else {
+                        println!("{}", d.get_good_response(&json!({"topic": topic})));
+                    }
+                } else {
+                    println!("{}", d.get_bad_response(&json!({"topic": topic})));
+                }
+            }));
+        }
+
+        for handle in handles {
+            smol::block_on(handle);
+        }
+
+        println!(""); // add blank line after all responses
     }
 }
 
